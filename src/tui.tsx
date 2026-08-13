@@ -992,6 +992,32 @@ const tui: TuiPlugin = async (api) => {
   void initializeTuiRegistration(api, registrationGate).catch(() => {});
 };
 
+async function setupV2Tui(api: TuiPluginApi): Promise<() => void | Promise<void>> {
+  const registrationGate = createTuiRegistrationGate();
+  let initialRuntimeSeed: TuiInitialRuntimeSeed | undefined;
+  const registrationPromise = resolveTuiSurfaceRegistration(api, {
+    captureInitialRuntime(seed) {
+      initialRuntimeSeed = seed;
+    },
+  }).catch(() => FALLBACK_SURFACE_REGISTRATION);
+
+  // OpenCode V2 next-17403 exposes keymap.layer but does not provide its
+  // Keymap context to external plugin setup. Server commands remain available;
+  // avoid taking down the visual slots with "Keymap.Provider is missing".
+  registerStableTuiSlots(api, registrationGate.current);
+
+  const registration = await registrationPromise;
+  registrationGate.activate(
+    registration,
+    initialRuntimeSeed ? createTuiInitialLoadCoordinator(initialRuntimeSeed) : undefined,
+  );
+
+  return () => {
+    registrationGate.dispose();
+    disposeQuotaTelemetryOwner(createTuiQuotaClient(api));
+  };
+}
+
 export const legacyTuiPlugin: TuiPluginModule & { id: string } = {
   id,
   tui,
@@ -1135,7 +1161,7 @@ export default Plugin.define({
       },
     };
 
-    await tui(api as never, undefined, {} as never);
+    cleanups.push(await setupV2Tui(api as never));
     return async () => {
       for (const cleanup of cleanups.reverse()) await cleanup();
     };
