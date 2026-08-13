@@ -225,7 +225,7 @@ function createApi() {
 
 async function loadTuiModule() {
   const mod = await import("../src/tui.tsx");
-  return mod.default;
+  return mod.legacyTuiPlugin;
 }
 
 function deferred<T>() {

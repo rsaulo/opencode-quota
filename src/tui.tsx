@@ -6,6 +6,7 @@ import type {
   TuiPluginModule,
   TuiPromptRef,
 } from "@opencode-ai/plugin/tui";
+import { Plugin } from "@opencode-ai/plugin/tui";
 import type { JSX } from "@opentui/solid";
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { formatDisplayedPercentLabel, formatResetCountdown } from "./lib/format-utils.js";
@@ -991,9 +992,152 @@ const tui: TuiPlugin = async (api) => {
   void initializeTuiRegistration(api, registrationGate).catch(() => {});
 };
 
-const pluginModule: TuiPluginModule & { id: string } = {
+export const legacyTuiPlugin: TuiPluginModule & { id: string } = {
   id,
   tui,
 };
 
-export default pluginModule;
+export default Plugin.define({
+  id,
+  async setup(context) {
+    const cleanups: Array<() => void | Promise<void>> = [];
+    const memory = new Map<string, unknown>();
+    const location = context.location as
+      | { directory?: string; worktree?: string; path?: string }
+      | undefined;
+    const directory = location?.directory ?? location?.path ?? process.cwd();
+    const worktree = location?.worktree ?? directory;
+    const api = {
+      state: {
+        provider: context.data.location.provider.list(context.location) ?? [],
+        path: { directory, worktree },
+        session: {
+          messages: (sessionID: string) => context.data.session.message.list(sessionID),
+          status: (sessionID: string) => ({ type: context.data.session.status(sessionID) }),
+        },
+      },
+      theme: { current: context.theme },
+      route: {
+        get current() {
+          const route = context.ui.router.current();
+          return route.type === "session"
+            ? { name: "session", params: { sessionID: route.sessionID } }
+            : { name: route.type, params: {} };
+        },
+      },
+      ui: {
+        Prompt: () => null,
+        DialogPrompt: () => null,
+        toast: (input: Parameters<typeof context.ui.toast.show>[0]) => context.ui.toast.show(input),
+        dialog: {
+          replace: (render: () => JSX.Element, onClose?: () => void) =>
+            context.ui.dialog.show(render, onClose),
+          clear: () => context.ui.dialog.clear(),
+          setSize: (size: DialogSize) => context.ui.dialog.set({ size }),
+        },
+      },
+      event: {
+        on: (type: string, handler: (event: unknown) => void) =>
+          context.data.on(
+            type as never,
+            ((event: { type: string; data?: unknown }) =>
+              handler({ type: event.type, properties: event.data ?? {} })) as never,
+          ),
+      },
+      slots: {
+        register: (registration: {
+          slots: Record<
+            string,
+            (ctx: unknown, props: Record<string, unknown>) => JSX.Element | null
+          >;
+        }) => {
+          for (const [name, render] of Object.entries(registration.slots)) {
+            if (name === "sidebar_content") {
+              cleanups.push(
+                context.ui.slot({
+                  append: "sidebar.content",
+                  render: ({ sessionID }) => render({}, { session_id: sessionID }) as JSX.Element,
+                }),
+              );
+            } else if (name === "home_bottom") {
+              cleanups.push(
+                context.ui.slot({
+                  append: "home.footer",
+                  render: () => render({}, {}) as JSX.Element,
+                }),
+              );
+            } else if (name === "session_prompt") {
+              cleanups.push(
+                context.ui.slot({
+                  append: "prompt.footer",
+                  render: ({ sessionID }) =>
+                    (sessionID ? render({}, { session_id: sessionID }) : null) as JSX.Element,
+                }),
+              );
+            }
+          }
+          return id;
+        },
+      },
+      lifecycle: {
+        onDispose: (cleanup: () => void | Promise<void>) => {
+          cleanups.push(cleanup);
+          return cleanup;
+        },
+      },
+      keymap: {
+        registerLayer: (layer: {
+          commands: Array<{
+            name: string;
+            title: string;
+            desc?: string;
+            category?: string;
+            slashName?: string;
+            run(input?: unknown): void | Promise<void>;
+          }>;
+        }) => {
+          context.keymap.layer(() => ({
+            commands: layer.commands.map((command) => ({
+              id: command.name,
+              title: command.title,
+              description: command.desc,
+              group: command.category,
+              palette: true,
+              ...(command.slashName
+                ? { slash: { name: command.slashName, arguments: true as const } }
+                : {}),
+              run: (input?: string) => command.run(input ? { arguments: input } : undefined),
+            })),
+          }));
+          return () => {};
+        },
+      },
+      client: {
+        app: { log: async () => undefined },
+        config: {
+          get: async () => ({ data: {} }),
+          providers: async () => ({
+            data: { providers: context.data.location.provider.list(context.location) ?? [] },
+          }),
+        },
+        session: {
+          get: async ({ path }: { path: { id: string } }) => ({
+            data: context.data.session.get(path.id),
+          }),
+          prompt: (input: Parameters<typeof context.client.session.prompt>[0]) =>
+            context.client.session.prompt(input),
+        },
+      },
+      kv: {
+        get: <Value,>(key: string, fallback?: Value) =>
+          (memory.has(key) ? memory.get(key) : fallback) as Value,
+        set: (key: string, value: unknown) => memory.set(key, value),
+      },
+    };
+
+    await tui(api as never, undefined, {} as never);
+    return async () => {
+      for (const cleanup of cleanups.reverse()) await cleanup();
+    };
+  },
+});

@@ -225,7 +225,7 @@ const scenarios: Scenario[] = [
   },
 ];
 
-let plugin: typeof import("../src/tui.tsx")["default"];
+let plugin: typeof import("../src/tui.tsx")["legacyTuiPlugin"];
 const results: ScenarioResult[] = [];
 
 function flushPromises(): Promise<void> {
@@ -377,7 +377,7 @@ beforeAll(async () => {
   (globalThis as { React?: unknown }).React = {
     createElement: (type: unknown, props: unknown) => ({ type, props }),
   };
-  plugin = (await import("../src/tui.tsx")).default;
+  plugin = (await import("../src/tui.tsx")).legacyTuiPlugin;
 });
 
 beforeEach(() => {

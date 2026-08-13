@@ -151,9 +151,9 @@ describe("package manifest compatibility", () => {
     expect(pkg.devDependencies?.yaml).toBe("^2.8.3");
   });
 
-  it("keeps the public plugin peer broad and reference-compatible development targets exact", () => {
-    expect(pkg.peerDependencies?.["@opencode-ai/plugin"]).toBe("^1.4.3");
-    expect(pkg.devDependencies?.["@opencode-ai/plugin"]).toBe("1.18.11");
+  it("pins the OpenCode V2 plugin API and its compatible OpenTUI runtime", () => {
+    expect(pkg.peerDependencies?.["@opencode-ai/plugin"]).toBe("0.0.0-next-17403");
+    expect(pkg.devDependencies?.["@opencode-ai/plugin"]).toBe("0.0.0-next-17403");
     expect(pkg.dependencies?.["@opentui/core"]).toBe("0.4.5");
     expect(pkg.dependencies?.["@opentui/solid"]).toBe("0.4.5");
     expect(readme).toContain("Node.js `>= 22` is required.");
@@ -164,7 +164,7 @@ describe("package manifest compatibility", () => {
   it("keeps the TypeScript 7 toolchain explicit without suppressing the known peer mismatch", () => {
     expect(tsconfig.compilerOptions?.types).toEqual(["node"]);
     expect(typescriptValidator).toContain('const EXPECTED_TYPESCRIPT_VERSION = "7.0.2";');
-    expect(typescriptValidator).toContain('const EXPECTED_PLUGIN_VERSION = "1.18.11";');
+    expect(typescriptValidator).toContain('const EXPECTED_PLUGIN_VERSION = "0.0.0-next-17403";');
     expect(typescriptValidator).toContain('const EXPECTED_OPENTUI_VERSION = "0.4.5";');
     expect(typescriptValidator).toContain('const BUN_FFI_TYPESCRIPT_PEER = "^5";');
     expect(typescriptValidator).toContain("Known unmet peer:");

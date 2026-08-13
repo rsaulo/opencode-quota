@@ -247,7 +247,7 @@ import {
 const originalCwd = process.cwd();
 const originalEnv = { ...process.env };
 const reportResults: StartupRuntimeResult[] = [];
-let plugin: typeof import("../src/tui.tsx")["default"];
+let plugin: typeof import("../src/tui.tsx")["legacyTuiPlugin"];
 
 function createElement(
   type: unknown,
@@ -531,7 +531,7 @@ async function runInitialSample(
 beforeAll(async () => {
   vi.useFakeTimers();
   (globalThis as { React?: unknown }).React = { createElement };
-  plugin = (await import("../src/tui.tsx")).default;
+  plugin = (await import("../src/tui.tsx")).legacyTuiPlugin;
 });
 
 beforeEach(() => {

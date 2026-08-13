@@ -44,7 +44,7 @@ describe("tui dist packaging", () => {
     expect(source).toContain("sidebar_content");
     expect(source).toContain("loadTuiSessionQuotaSurfaces");
     expect(source).toContain("resolveTuiSurfaceRegistration");
-    expect(source).toContain("const pluginModule");
+    expect(source).toContain("Plugin.define");
     expect(source).toContain("registerQuotaDialogCommands");
     expect(source).toContain("CommandOutputDialog");
     expect(source).toContain("buildQuotaDialogCommandOutput");
@@ -58,6 +58,6 @@ describe("tui dist packaging", () => {
     expect(mod.default).toMatchObject({
       id: "@slkiser/opencode-quota",
     });
-    expect(typeof mod.default.tui).toBe("function");
+    expect(typeof mod.default.setup).toBe("function");
   });
 });

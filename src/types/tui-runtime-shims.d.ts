@@ -221,4 +221,15 @@ declare module "@opencode-ai/plugin/tui" {
     tui: TuiPlugin;
     server?: never;
   };
+
+  export namespace Plugin {
+    type Context = import("@opencode-ai/plugin/tui/plugin").Context;
+    function define(plugin: {
+      readonly id: string;
+      readonly setup: (context: Context) => Promise<(() => void | Promise<void>) | void>;
+    }): {
+      readonly id: string;
+      readonly setup: (context: Context) => Promise<(() => void | Promise<void>) | void>;
+    };
+  }
 }

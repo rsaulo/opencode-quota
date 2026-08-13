@@ -7,8 +7,8 @@
  */
 
 import { isMainThread } from "node:worker_threads";
-import type { Plugin } from "@opencode-ai/plugin";
-import { tool } from "@opencode-ai/plugin";
+import type { Plugin as LegacyPlugin } from "@opencode-ai/plugin/v1";
+import { tool } from "@opencode-ai/plugin/v1";
 import {
   DEFAULT_ALIBABA_AUTH_CACHE_MAX_AGE_MS,
   isAlibabaModelId,
@@ -209,7 +209,7 @@ const DEFERRED_QUOTA_REFRESH_DELAYS_MS = [3_000, 15_000, 60_000, 300_000] as con
 /**
  * Main plugin export
  */
-export const QuotaToastPlugin: Plugin = async ({ client, directory }) => {
+export const QuotaToastPlugin: LegacyPlugin = async ({ client, directory }) => {
   const typedClient = client as unknown as OpencodeClient;
   let opencodeConfig: PluginConfigInput | null = null;
 
