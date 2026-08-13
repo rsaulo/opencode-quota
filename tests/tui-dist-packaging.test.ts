@@ -49,6 +49,11 @@ describe("tui dist packaging", () => {
     expect(source).toContain("CommandOutputDialog");
     expect(source).toContain("buildQuotaDialogCommandOutput");
     expect(source).toContain("registerLayer");
+    const sidebarSource = source.slice(
+      source.indexOf("function SidebarContentView"),
+      source.indexOf("function CompactStatusLine"),
+    );
+    expect(sidebarSource).not.toContain('createElement("b")');
     expect(source).not.toContain("jsx-dev-runtime");
   });
 

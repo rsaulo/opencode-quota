@@ -344,7 +344,7 @@ function createApi(worktreeDir: string) {
 }
 
 function containsText(value: unknown, expected: string, seen = new Set<unknown>()): boolean {
-  if (value === expected) return true;
+  if (typeof value === "string" && value.includes(expected)) return true;
   if (!value || typeof value !== "object" || seen.has(value)) return false;
   seen.add(value);
   return Object.values(value as Record<string, unknown>).some((child) =>

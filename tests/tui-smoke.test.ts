@@ -1133,14 +1133,9 @@ describe("tui plugin smoke", () => {
       {},
       { session_id: "session-1" },
     ) as any;
-    const collapsedHeader = collapsed.props.children[0];
-    expect(collapsedHeader.props.children[0].props.children.props.children).toBe("▶ Quota");
-    expect(collapsedHeader.props.children[1].props.children).toEqual([" (", 2, " providers)"]);
-    expect(
-      collapsed.props.children[1].props.children.map((line: any) => line.props.children),
-    ).toEqual(["Copilot 5h 82%"]);
+    expect(collapsed.props.children).toBe("▶ Quota (2 providers)\nCopilot 5h 82%");
 
-    collapsedHeader.props.children[0].props.onMouseDown();
+    collapsed.props.onMouseDown();
 
     expect(api.kv.set).toHaveBeenCalledWith("quota-sidebar-collapsed", false);
 
@@ -1148,11 +1143,7 @@ describe("tui plugin smoke", () => {
       {},
       { session_id: "session-1" },
     ) as any;
-    const expandedHeader = expanded.props.children[0];
-    expect(expandedHeader.props.children[0].props.children.props.children).toBe("▼ Quota");
-    expect(
-      expanded.props.children[1].props.children.map((line: any) => line.props.children),
-    ).toEqual(["[Copilot]", "5h window 82%", "Weekly window 58%"]);
+    expect(expanded.props.children).toBe("▼ Quota\n[Copilot]\n5h window 82%\nWeekly window 58%");
   });
 
   it("keeps non-expandable empty sidebar panels visible while collapsed", async () => {
@@ -1191,9 +1182,7 @@ describe("tui plugin smoke", () => {
       {},
       { session_id: "session-1" },
     ) as any;
-    const header = rendered.props.children[0];
-    expect(header.props.children[0].props.children.props.children).toBe("Quota");
-    expect(rendered.props.children[1].props.children[0].props.children).toBe("Unavailable");
+    expect(rendered.props.children).toBe("Quota\nUnavailable");
   });
 
   it("activates only the sidebar host when surface resolution fails", async () => {
@@ -1339,7 +1328,7 @@ describe("tui plugin smoke", () => {
     await flushPromises();
     expect(loadTuiSessionQuotaSurfaces).toHaveBeenCalledTimes(2);
     let rendered = sidebar({}, { session_id: "session-1" }) as any;
-    expect(rendered.props.children[1].props.children[0].props.children).toBe("initial");
+    expect(rendered.props.children).toBe("Quota\ninitial");
 
     second.resolve({
       sidebar: { status: "ready", lines: ["refreshed"] },
@@ -1347,7 +1336,7 @@ describe("tui plugin smoke", () => {
     });
     await flushPromises();
     rendered = sidebar({}, { session_id: "session-1" });
-    expect(rendered.props.children[1].props.children[0].props.children).toBe("refreshed");
+    expect(rendered.props.children).toBe("Quota\nrefreshed");
   });
 
   it("keeps shared session resources alive until the final release and then disposes them", async () => {

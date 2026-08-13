@@ -19,7 +19,6 @@ import {
 import { extractSingleWindowWindowLabel } from "./lib/quota-entry-display.js";
 import type { SessionTokenError } from "./lib/quota-status.js";
 import { disposeQuotaTelemetryOwner } from "./lib/quota-telemetry.js";
-import { getSidebarBodyLineColor } from "./lib/tui-line-style.js";
 import type {
   CompactStatusState,
   HomeBottomState,
@@ -374,26 +373,18 @@ function SidebarContentView(props: {
 
   const toggleIcon = () => (collapsed() ? "▶" : "▼");
   const providerCount = () => panel().providerCount ?? 0;
+  const content = () => {
+    const header = hasDetailLines()
+      ? `${toggleIcon()} Quota${collapsed() && providerCount() > 0 ? ` (${providerCount()} providers)` : ""}`
+      : "Quota";
+    return [header, ...displayLines().map((line) => line || " ")].join("\n");
+  };
 
   return (
     <Show when={shouldRenderSidebarPanel(panel())}>
-      <box gap={0}>
-        <box flexDirection="row">
-          <text fg={props.api.theme.current.text} onMouseDown={toggleCollapsed}>
-            <b>{hasDetailLines() ? `${toggleIcon()} Quota` : "Quota"}</b>
-          </text>
-          <Show when={collapsed() && providerCount() > 0}>
-            <text fg={props.api.theme.current.textMuted}> ({providerCount()} providers)</text>
-          </Show>
-        </box>
-        <box gap={0}>
-          {displayLines().map((line) => (
-            <text fg={getSidebarBodyLineColor(line, props.api.theme.current)} wrapMode="none">
-              {line || " "}
-            </text>
-          ))}
-        </box>
-      </box>
+      <text fg={props.api.theme.current.textMuted} onMouseDown={toggleCollapsed} wrapMode="none">
+        {content()}
+      </text>
     </Show>
   );
 }
