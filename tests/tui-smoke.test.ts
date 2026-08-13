@@ -1133,7 +1133,7 @@ describe("tui plugin smoke", () => {
       {},
       { session_id: "session-1" },
     ) as any;
-    expect(collapsed.props.children).toBe("▶ Quota (2 providers)\nCopilot 5h 82%");
+    expect(collapsed.props.children).toBe("▶ Quota (2 providers)\n\nCopilot 5h 82%");
 
     collapsed.props.onMouseDown();
 
@@ -1143,7 +1143,7 @@ describe("tui plugin smoke", () => {
       {},
       { session_id: "session-1" },
     ) as any;
-    expect(expanded.props.children).toBe("▼ Quota\n[Copilot]\n5h window 82%\nWeekly window 58%");
+    expect(expanded.props.children).toBe("▼ Quota\n\n[Copilot]\n5h window 82%\nWeekly window 58%");
   });
 
   it("keeps non-expandable empty sidebar panels visible while collapsed", async () => {
@@ -1182,7 +1182,7 @@ describe("tui plugin smoke", () => {
       {},
       { session_id: "session-1" },
     ) as any;
-    expect(rendered.props.children).toBe("Quota\nUnavailable");
+    expect(rendered.props.children).toBe("Quota\n\nUnavailable");
   });
 
   it("activates only the sidebar host when surface resolution fails", async () => {
@@ -1328,7 +1328,7 @@ describe("tui plugin smoke", () => {
     await flushPromises();
     expect(loadTuiSessionQuotaSurfaces).toHaveBeenCalledTimes(2);
     let rendered = sidebar({}, { session_id: "session-1" }) as any;
-    expect(rendered.props.children).toBe("Quota\ninitial");
+    expect(rendered.props.children).toBe("Quota\n\ninitial");
 
     second.resolve({
       sidebar: { status: "ready", lines: ["refreshed"] },
@@ -1336,7 +1336,7 @@ describe("tui plugin smoke", () => {
     });
     await flushPromises();
     rendered = sidebar({}, { session_id: "session-1" });
-    expect(rendered.props.children).toBe("Quota\nrefreshed");
+    expect(rendered.props.children).toBe("Quota\n\nrefreshed");
   });
 
   it("keeps shared session resources alive until the final release and then disposes them", async () => {

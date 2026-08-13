@@ -377,7 +377,7 @@ function SidebarContentView(props: {
     const header = hasDetailLines()
       ? `${toggleIcon()} Quota${collapsed() && providerCount() > 0 ? ` (${providerCount()} providers)` : ""}`
       : "Quota";
-    return [header, ...displayLines().map((line) => line || " ")].join("\n");
+    return [header, "", ...displayLines().map((line) => line || " ")].join("\n");
   };
 
   return (

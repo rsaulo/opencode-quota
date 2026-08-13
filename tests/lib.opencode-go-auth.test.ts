@@ -100,8 +100,13 @@ describe("OpenCode Go auth resolution", () => {
     });
   });
 
-  it("rejects alias auth keys", () => {
-    for (const alias of ["opencode-go", "opencode-go-subscription", "openai", "zen"]) {
+  it("accepts the OpenCode V2 auth key and rejects other aliases", () => {
+    expect(resolveOpenCodeGoAuth({ "opencode-go": { type: "api", key: "v2-key" } })).toEqual({
+      state: "configured",
+      apiKey: "v2-key",
+    });
+
+    for (const alias of ["opencode-go-subscription", "openai", "zen"]) {
       expect(resolveOpenCodeGoAuth({ [alias]: { type: "api", key: "alias-key" } })).toEqual({
         state: "none",
       });

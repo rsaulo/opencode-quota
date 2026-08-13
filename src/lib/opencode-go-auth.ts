@@ -6,8 +6,9 @@ import {
 import { getAuthPaths, readAuthFileCached } from "./opencode-auth.js";
 
 export const DEFAULT_OPENCODE_GO_AUTH_CACHE_MAX_AGE_MS = 5_000;
-const OPENCODE_GO_AUTH_KEYS = ["opencode"] as const;
-const OPENCODE_GO_PROVIDER_KEYS = ["opencode"] as const;
+// OpenCode V2 stores the credential under "opencode-go"; V1 used "opencode".
+const OPENCODE_GO_AUTH_KEYS = ["opencode-go", "opencode"] as const;
+const OPENCODE_GO_PROVIDER_KEYS = ["opencode-go", "opencode"] as const;
 const ALLOWED_OPENCODE_GO_ENV_VARS = ["OPENCODE_API_KEY"] as const;
 
 export type OpenCodeGoKeySource =
