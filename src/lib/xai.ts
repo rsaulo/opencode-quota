@@ -15,6 +15,7 @@ import { sanitizeSingleLineDisplaySnippet } from "./display-sanitize.js";
 import { clampPercent } from "./format-utils.js";
 import { fetchWithTimeout } from "./http.js";
 import { readAuthFile, readAuthFileCached } from "./opencode-auth.js";
+import { readOpenCodeCredential, readOpenCodeCredentialCached } from "./opencode-credential.js";
 import type { AuthData, QuotaError } from "./types.js";
 
 export const DEFAULT_XAI_AUTH_CACHE_MAX_AGE_MS = 5_000;
@@ -111,10 +112,20 @@ export function hasXaiOAuth(auth: AuthData | null | undefined): boolean {
 }
 
 export async function hasXaiOAuthCached(params?: { maxAgeMs?: number }): Promise<boolean> {
-  const auth = await readAuthFileCached({
-    maxAgeMs: Math.max(0, params?.maxAgeMs ?? DEFAULT_XAI_AUTH_CACHE_MAX_AGE_MS),
-  });
-  return hasXaiOAuth(auth);
+  const maxAgeMs = Math.max(0, params?.maxAgeMs ?? DEFAULT_XAI_AUTH_CACHE_MAX_AGE_MS);
+  const auth = await readAuthFileCached({ maxAgeMs });
+  if (hasXaiOAuth(auth)) return true;
+
+  const credential = await readOpenCodeCredentialCached("xai", { maxAgeMs });
+  return resolveXaiOAuth({ xai: credential as AuthData["xai"] }).state === "configured";
+}
+
+async function readCurrentXaiOAuth(): Promise<ResolvedXaiOAuth> {
+  const legacy = resolveXaiOAuth(await readAuthFile());
+  if (legacy.state === "configured") return legacy;
+
+  const credential = await readOpenCodeCredential("xai");
+  return resolveXaiOAuth({ xai: credential as AuthData["xai"] });
 }
 
 function parseCreditsWindow(payload: unknown): XaiWindowValue | null {
@@ -229,9 +240,9 @@ export async function queryXaiQuota(
   options: { requestTimeoutMs?: number } = {},
 ): Promise<XaiResult> {
   // OpenCode can replace this OAuth entry while servicing a model request.
-  // Read the file directly so a post-request quota fetch cannot reuse the
-  // token snapshot from before that refresh.
-  const resolvedAuth = resolveXaiOAuth(await readAuthFile());
+  // Bypass caches so a post-request quota fetch cannot reuse the token
+  // snapshot from before that refresh.
+  const resolvedAuth = await readCurrentXaiOAuth();
   if (resolvedAuth.state !== "configured") return null;
 
   if (resolvedAuth.expiresAt !== undefined && resolvedAuth.expiresAt <= Date.now()) {

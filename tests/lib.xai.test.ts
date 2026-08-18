@@ -8,6 +8,11 @@ vi.mock("../src/lib/opencode-auth.js", () => ({
   readAuthFileCached: vi.fn(),
 }));
 
+vi.mock("../src/lib/opencode-credential.js", () => ({
+  readOpenCodeCredential: vi.fn().mockResolvedValue(null),
+  readOpenCodeCredentialCached: vi.fn().mockResolvedValue(null),
+}));
+
 async function mockConfiguredAuth(overrides: Record<string, unknown> = {}): Promise<void> {
   const { readAuthFile } = await import("../src/lib/opencode-auth.js");
   (readAuthFile as any).mockResolvedValueOnce({
@@ -85,6 +90,30 @@ describe("queryXaiQuota", () => {
     await expect(queryXaiQuota()).resolves.toBeNull();
     await expect(queryXaiQuota()).resolves.toBeNull();
     await expect(queryXaiQuota()).resolves.toBeNull();
+  });
+
+  it("reads the OpenCode V2 credential store when legacy auth.json has no xAI entry", async () => {
+    const { readAuthFile } = await import("../src/lib/opencode-auth.js");
+    const { readOpenCodeCredential } = await import("../src/lib/opencode-credential.js");
+    (readAuthFile as any).mockResolvedValueOnce({});
+    (readOpenCodeCredential as any).mockResolvedValueOnce({
+      type: "oauth",
+      access: "v2-token",
+      expires: Date.now() + 60_000,
+    });
+    const fetchMock = vi.fn(async () => jsonResponse(superGrokWeeklyFixture));
+    vi.stubGlobal("fetch", fetchMock as any);
+
+    await expect(queryXaiQuota()).resolves.toMatchObject({
+      success: true,
+      window: { percentRemaining: 95, kind: "weekly" },
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://cli-chat-proxy.grok.com/v1/billing?format=credits",
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: "Bearer v2-token" }),
+      }),
+    );
   });
 
   it("does not refresh, fetch, or write an expired token", async () => {

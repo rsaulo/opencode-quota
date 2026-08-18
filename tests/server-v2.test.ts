@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => ({
   event: vi.fn(),
   toolAfter: vi.fn(),
   quotaExecute: vi.fn(async () => "quota output"),
+  resolveRuntime: vi.fn(async () => ({ runtime: true })),
+  refreshExport: vi.fn(async () => true),
 }));
 
 vi.mock("../src/plugin.js", () => ({
@@ -24,6 +26,14 @@ vi.mock("../src/plugin.js", () => ({
       },
     },
   })),
+}));
+
+vi.mock("../src/lib/quota-runtime-context.js", () => ({
+  resolveQuotaRuntimeContext: mocks.resolveRuntime,
+}));
+
+vi.mock("../src/lib/quota-export-refresh.js", () => ({
+  refreshQuotaExportIfEnabled: mocks.refreshExport,
 }));
 
 describe("V2 server adapter", () => {
@@ -91,6 +101,7 @@ describe("V2 server adapter", () => {
       result: { content: "answer", metadata: {} },
     });
     await vi.waitFor(() => expect(eventYielded).toBe(true));
+    await vi.waitFor(() => expect(mocks.refreshExport).toHaveBeenCalledWith({ runtime: true }));
     await vi.waitFor(() =>
       expect(mocks.event).toHaveBeenCalledWith({
         event: { type: "session.idle", properties: { sessionID: "session-1" } },

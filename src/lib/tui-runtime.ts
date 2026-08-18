@@ -10,12 +10,7 @@ import {
 } from "./maintainer-announcements.js";
 import { getQuotaProviderShape, normalizeQuotaProviderId } from "./provider-metadata.js";
 import { classifyQuotaWindowText } from "./quota-entry-display.js";
-import {
-  buildQuotaExport,
-  createExportProviderContext,
-  resolveExportPath,
-  writeQuotaExport,
-} from "./quota-export.js";
+import { refreshQuotaExportIfEnabled } from "./quota-export-refresh.js";
 import { resolveQuotaFormatStyle } from "./quota-format-style.js";
 import type {
   CollectQuotaRenderDataResult,
@@ -692,19 +687,5 @@ export async function writeTuiQuotaExportIfEnabled(params: { api: TuiPluginApi }
     roots: getTuiRuntimeRootHints(params.api),
   });
 
-  if (!runtime.config.enabled || !runtime.config.export.enabled) {
-    return;
-  }
-
-  const resolvedPath = resolveExportPath(runtime.config.export.path);
-  const ctx = createExportProviderContext(runtime);
-
-  const exportData = await buildQuotaExport({
-    providers: runtime.providers,
-    ctx,
-    ttlMs: runtime.config.minIntervalMs,
-    fromCache: true,
-  });
-
-  await writeQuotaExport(exportData, resolvedPath);
+  await refreshQuotaExportIfEnabled(runtime);
 }

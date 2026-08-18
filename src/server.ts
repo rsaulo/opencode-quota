@@ -1,6 +1,11 @@
 import { Plugin } from "@opencode-ai/plugin";
+import { findGitWorktreeRoot, getEffectiveConfigRoot } from "./lib/config-file-utils.js";
 import { QUOTA_DIALOG_COMMANDS } from "./lib/quota-dialog-commands.js";
+import { refreshQuotaExportIfEnabled } from "./lib/quota-export-refresh.js";
+import { resolveQuotaRuntimeContext } from "./lib/quota-runtime-context.js";
 import { QuotaToastPlugin } from "./plugin.js";
+
+const EXPORT_REFRESH_INTERVAL_MS = 60_000;
 
 export default Plugin.define({
   id: "@slkiser/opencode-quota",
@@ -49,6 +54,26 @@ export default Plugin.define({
       client: legacyClient as never,
       directory,
     } as never);
+    const workspaceRoot = findGitWorktreeRoot(directory) ?? directory;
+    const refreshExport = async () => {
+      const runtime = await resolveQuotaRuntimeContext({
+        client: legacyClient as never,
+        roots: {
+          workspaceRoot,
+          configRoot: getEffectiveConfigRoot(workspaceRoot),
+          fallbackDirectory: directory,
+        },
+        configureTelemetry: false,
+      });
+      await refreshQuotaExportIfEnabled(runtime);
+    };
+    const refreshExportSafely = () =>
+      void refreshExport().catch((error) => {
+        console.warn(`[opencode-quota] quota export refresh failed: ${String(error)}`);
+      });
+    refreshExportSafely();
+    const exportRefreshInterval = setInterval(refreshExportSafely, EXPORT_REFRESH_INTERVAL_MS);
+    exportRefreshInterval.unref();
 
     const legacyConfig: {
       command?: Record<string, { template: string; description: string }>;
@@ -135,6 +160,7 @@ export default Plugin.define({
     }
 
     return async () => {
+      clearInterval(exportRefreshInterval);
       abort.abort();
       await hooks.dispose?.();
       await Promise.all(registrations.map((registration) => registration.dispose()));
