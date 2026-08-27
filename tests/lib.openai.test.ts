@@ -4,10 +4,15 @@ import businessTeamMonthlyUsage from "./fixtures/openai/business-team-monthly.sa
 
 const mocks = vi.hoisted(() => ({
   readAuthFileCached: vi.fn(),
+  readOpenCodeCredentialCached: vi.fn(),
 }));
 
 vi.mock("../src/lib/opencode-auth.js", () => ({
   readAuthFileCached: mocks.readAuthFileCached,
+}));
+
+vi.mock("../src/lib/opencode-credential.js", () => ({
+  readOpenCodeCredentialCached: mocks.readOpenCodeCredentialCached,
 }));
 
 import {
@@ -27,6 +32,7 @@ function mockOpenAIUsageResponse(usage: unknown): void {
 describe("openai auth resolution", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.readOpenCodeCredentialCached.mockResolvedValue(null);
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
   });
@@ -70,6 +76,42 @@ describe("openai auth resolution", () => {
 
     const out = await queryOpenAIQuota();
     expect(out && !out.success ? out.error : "").toContain("Token expired");
+  });
+
+  it("prefers the OpenCode V2 credential without consulting legacy auth", async () => {
+    mocks.readOpenCodeCredentialCached.mockResolvedValueOnce({
+      type: "oauth",
+      access: "v2-token",
+      expires: Date.now() + 60_000,
+    });
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            plan_type: "plus",
+            rate_limit: {
+              limit_reached: false,
+              primary_window: {
+                used_percent: 20,
+                limit_window_seconds: 18_000,
+                reset_after_seconds: 3600,
+              },
+              secondary_window: null,
+            },
+          }),
+          { status: 200 },
+        ),
+    );
+    vi.stubGlobal("fetch", fetchMock as any);
+
+    await expect(queryOpenAIQuota()).resolves.toMatchObject({ success: true });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://chatgpt.com/backend-api/wham/usage",
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: "Bearer v2-token" }),
+      }),
+    );
+    expect(mocks.readAuthFileCached).not.toHaveBeenCalled();
   });
 
   it("reads auth from chatgpt when codex and openai are absent", async () => {

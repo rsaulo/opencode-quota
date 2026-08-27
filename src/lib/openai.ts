@@ -9,6 +9,7 @@ import { sanitizeDisplaySnippet, sanitizeDisplayText } from "./display-sanitize.
 import { clampPercent } from "./format-utils.js";
 import { fetchWithTimeout } from "./http.js";
 import { readAuthFileCached } from "./opencode-auth.js";
+import { readOpenCodeCredentialCached } from "./opencode-credential.js";
 import type { AuthData, OpenAIOAuthData, QuotaError } from "./types.js";
 
 interface OpenAIUsageResponse {
@@ -239,20 +240,25 @@ export function hasOpenAIOAuth(auth: AuthData | null | undefined): boolean {
   return resolveOpenAIOAuth(auth).state === "configured";
 }
 
+export async function resolveCurrentOpenAIOAuth(params?: {
+  maxAgeMs?: number;
+}): Promise<ResolvedOpenAIOAuth> {
+  const maxAgeMs = Math.max(0, params?.maxAgeMs ?? DEFAULT_OPENAI_AUTH_CACHE_MAX_AGE_MS);
+  const credential = await readOpenCodeCredentialCached("openai", { maxAgeMs });
+  const current = resolveOpenAIOAuth({ openai: credential as AuthData["openai"] });
+  if (current.state === "configured") return current;
+
+  return resolveOpenAIOAuth(await readAuthFileCached({ maxAgeMs }));
+}
+
 export async function hasOpenAIOAuthCached(params?: { maxAgeMs?: number }): Promise<boolean> {
-  const auth = await readAuthFileCached({
-    maxAgeMs: Math.max(0, params?.maxAgeMs ?? DEFAULT_OPENAI_AUTH_CACHE_MAX_AGE_MS),
-  });
-  return hasOpenAIOAuth(auth);
+  return (await resolveCurrentOpenAIOAuth(params)).state === "configured";
 }
 
 export async function queryOpenAIQuota(
   options: { requestTimeoutMs?: number } = {},
 ): Promise<OpenAIResult> {
-  const auth = await readAuthFileCached({
-    maxAgeMs: DEFAULT_OPENAI_AUTH_CACHE_MAX_AGE_MS,
-  });
-  const resolvedAuth = resolveOpenAIOAuth(auth);
+  const resolvedAuth = await resolveCurrentOpenAIOAuth();
   if (resolvedAuth.state !== "configured") return null;
 
   if (resolvedAuth.expiresAt && resolvedAuth.expiresAt < Date.now()) {
