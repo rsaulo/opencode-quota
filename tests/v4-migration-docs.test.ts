@@ -24,7 +24,7 @@ const configuration = await readFile(
 describe("v4 migration documentation contract", () => {
   it("keeps requirements and navigation aligned", () => {
     expect(packageJson.engines?.node).toBe(">=22.0.0");
-    expect(packageJson.peerDependencies?.["@opencode-ai/plugin"]).toBe("0.0.0-next-17403");
+    expect(packageJson.peerDependencies?.["@opencode-ai/plugin"]).toBe("0.0.0-beta-18286");
     expect(packageJson.engines).not.toHaveProperty("opencode");
 
     expect(migration).toContain("[← Back to README](../../README.md)");

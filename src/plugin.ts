@@ -7,8 +7,6 @@
  */
 
 import { isMainThread } from "node:worker_threads";
-import type { Plugin as LegacyPlugin } from "@opencode-ai/plugin/v1";
-import { tool } from "@opencode-ai/plugin/v1";
 import {
   DEFAULT_ALIBABA_AUTH_CACHE_MAX_AGE_MS,
   isAlibabaModelId,
@@ -57,6 +55,7 @@ import {
 import type { SessionTokenError } from "./lib/quota-status.js";
 import { disposeQuotaTelemetryOwner } from "./lib/quota-telemetry.js";
 import { isQwenCodeModelId, resolveQwenLocalPlanCached } from "./lib/qwen-auth.js";
+import { tool } from "./lib/tool-definition.js";
 import { inspectTuiConfig } from "./lib/tui-config-diagnostics.js";
 import type { QuotaToastConfig } from "./lib/types.js";
 import { DEFAULT_CONFIG } from "./lib/types.js";
@@ -123,6 +122,20 @@ interface OpencodeClient {
   };
 }
 
+/**
+ * Input accepted by the quota core.
+ *
+ * This used to be the V1 SDK's `Plugin` type, whose `client` was the full
+ * opencode SDK client and was cast away on the very first line anyway. The core
+ * only ever needed the narrow `OpencodeClient` port declared above, which both
+ * V2 adapters already satisfy: the server one in server.ts and the TUI one in
+ * tui.tsx.
+ */
+export interface QuotaCoreInput {
+  client: OpencodeClient;
+  directory?: string;
+}
+
 /** Event type for plugin hooks */
 interface PluginEvent {
   type: string;
@@ -137,6 +150,13 @@ interface ToolExecuteAfterInput {
   tool: string;
   sessionID: string;
   callID: string;
+  /**
+   * The tool call's own input, forwarded verbatim by the V2 server adapter.
+   * Nothing in this core reads it today; it is declared so the adapter can keep
+   * passing what the host actually reports instead of silently narrowing it.
+   * The V1 SDK's hook type used to admit this field implicitly.
+   */
+  args?: unknown;
 }
 
 /** Tool execute hook output */
@@ -209,8 +229,7 @@ const DEFERRED_QUOTA_REFRESH_DELAYS_MS = [3_000, 15_000, 60_000, 300_000] as con
 /**
  * Main plugin export
  */
-export const QuotaToastPlugin: LegacyPlugin = async ({ client, directory }) => {
-  const typedClient = client as unknown as OpencodeClient;
+export const QuotaToastPlugin = async ({ client: typedClient, directory }: QuotaCoreInput) => {
   let opencodeConfig: PluginConfigInput | null = null;
 
   /**

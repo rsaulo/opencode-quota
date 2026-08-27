@@ -86,7 +86,7 @@
     "@babel/core": "^7.28.0",
     "@babel/preset-typescript": "^7.27.1",
     "@biomejs/biome": "2.3.11",
-    "@opencode-ai/plugin": "0.0.0-next-17403",
+    "@opencode-ai/plugin": "0.0.0-beta-18286",
     "@opentelemetry/sdk-metrics": "2.10.0",
     "@types/node": "^22.0.0",
     "babel-preset-solid": "^1.9.12",
@@ -103,13 +103,14 @@
     "comment-json": "^5.0.0",
     "jsonc-parser": "^3.3.1",
     "solid-js": "^1.9.12",
-    "xdg-basedir": "^5.1.0"
+    "xdg-basedir": "^5.1.0",
+    "zod": "4.1.8"
   },
   "optionalDependencies": {
     "better-sqlite3": "^12.10.0"
   },
   "peerDependencies": {
-    "@opencode-ai/plugin": "0.0.0-next-17403"
+    "@opencode-ai/plugin": "0.0.0-beta-18286"
   },
   "engines": {
     "node": ">=22.0.0"

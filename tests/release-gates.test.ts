@@ -115,7 +115,7 @@ describe("v4 release gates", () => {
     const typescript = run(typescriptScript);
     expect(typescript.status).toBe(0);
     expect(typescript.stdout).toContain(
-      "TypeScript 7.0.2 and @opencode-ai/plugin 0.0.0-next-17403 lock entries verified",
+      "TypeScript 7.0.2 and @opencode-ai/plugin 0.0.0-beta-18286 lock entries verified",
     );
 
     const history = run(historyScript);

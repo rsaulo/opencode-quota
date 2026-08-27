@@ -5,5 +5,13 @@ allowBuilds:
   msgpackr-extract: true
 blockExoticSubdeps: true
 minimumReleaseAge: 1440
+# zod publishes no `time` field in its registry metadata, so the release-age
+# guard cannot date it and refuses it outright. Excluding it is safe here: zod
+# is already in this tree as a transitive dependency of @opencode-ai/plugin at
+# the very same 4.1.8. Declaring it directly adds no new package and no new
+# code -- it only lets our own sources import it under pnpm's strict isolation,
+# which src/lib/tool-definition.ts needs after dropping @opencode-ai/plugin/v1.
+minimumReleaseAgeExclude:
+  - zod
 minimumReleaseAgeIgnoreMissingTime: false
 minimumReleaseAgeStrict: true
