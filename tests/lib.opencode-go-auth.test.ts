@@ -14,6 +14,7 @@ import {
 const authMocks = vi.hoisted(() => ({
   getAuthPaths: vi.fn(() => ["/tmp/auth.json"]),
   readAuthFileCached: vi.fn(),
+  readOpenCodeCredentialCached: vi.fn(),
   queryOpenCodeGoQuota: vi.fn(),
 }));
 
@@ -23,6 +24,9 @@ vi.mock("fs/promises", () => ({ readFile: vi.fn() }));
 vi.mock("../src/lib/opencode-auth.js", () => ({
   getAuthPaths: authMocks.getAuthPaths,
   readAuthFileCached: authMocks.readAuthFileCached,
+}));
+vi.mock("../src/lib/opencode-credential.js", () => ({
+  readOpenCodeCredentialCached: authMocks.readOpenCodeCredentialCached,
 }));
 vi.mock("../src/lib/opencode-go.js", () => ({
   queryOpenCodeGoQuota: authMocks.queryOpenCodeGoQuota,
@@ -60,6 +64,7 @@ function resetFixture(): void {
   resetFsConfigMocks(fsMocks);
   authMocks.getAuthPaths.mockReset().mockReturnValue(["/tmp/auth.json"]);
   authMocks.readAuthFileCached.mockReset().mockResolvedValue(null);
+  authMocks.readOpenCodeCredentialCached.mockReset().mockResolvedValue(null);
 }
 
 describe("OpenCode Go auth resolution", () => {
@@ -109,6 +114,55 @@ describe("OpenCode Go auth resolution", () => {
     for (const alias of ["opencode-go-subscription", "openai", "zen"]) {
       expect(resolveOpenCodeGoAuth({ [alias]: { type: "api", key: "alias-key" } })).toEqual({
         state: "none",
+      });
+    }
+  });
+
+  it("prefers the OpenCode V2 credential over a stale auth.json entry", async () => {
+    authMocks.readAuthFileCached.mockResolvedValue({
+      "opencode-go": { type: "api", key: "stale-file-key" },
+    });
+    authMocks.readOpenCodeCredentialCached.mockResolvedValue({
+      type: "api",
+      key: "fresh-credential-key",
+    });
+
+    await expect(resolveOpenCodeGoAuthCached()).resolves.toEqual({
+      state: "configured",
+      apiKey: "fresh-credential-key",
+    });
+    expect(authMocks.readOpenCodeCredentialCached).toHaveBeenCalledWith("opencode-go", {
+      maxAgeMs: DEFAULT_OPENCODE_GO_AUTH_CACHE_MAX_AGE_MS,
+    });
+  });
+
+  it("resolves from the credential store when auth.json has no entry at all", async () => {
+    authMocks.readAuthFileCached.mockResolvedValue(null);
+    authMocks.readOpenCodeCredentialCached.mockResolvedValue({
+      type: "api",
+      key: "credential-only-key",
+    });
+
+    await expect(resolveOpenCodeGoAuthCached()).resolves.toEqual({
+      state: "configured",
+      apiKey: "credential-only-key",
+    });
+  });
+
+  it("keeps every auth.json fallback when the credential is absent or unusable", async () => {
+    for (const credential of [
+      null,
+      {},
+      { type: "oauth", key: "nope" },
+      { type: "api", key: "  " },
+    ]) {
+      resetFixture();
+      authMocks.readAuthFileCached.mockResolvedValue(authEntry({ type: "api", key: "file-key" }));
+      authMocks.readOpenCodeCredentialCached.mockResolvedValue(credential);
+
+      await expect(resolveOpenCodeGoAuthCached()).resolves.toEqual({
+        state: "configured",
+        apiKey: "file-key",
       });
     }
   });
