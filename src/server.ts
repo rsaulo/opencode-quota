@@ -1,6 +1,5 @@
 import { Plugin } from "@opencode-ai/plugin";
 import { findGitWorktreeRoot, getEffectiveConfigRoot } from "./lib/config-file-utils.js";
-import { QUOTA_DIALOG_COMMANDS } from "./lib/quota-dialog-commands.js";
 import { refreshQuotaExportIfEnabled } from "./lib/quota-export-refresh.js";
 import { resolveQuotaRuntimeContext } from "./lib/quota-runtime-context.js";
 import { QuotaToastPlugin } from "./plugin.js";
@@ -78,17 +77,18 @@ export default Plugin.define({
     const legacyConfig: {
       command?: Record<string, { template: string; description: string }>;
     } = {};
+    // The legacy `config` hook still runs for its side effects: it seeds
+    // opencodeConfig and normalizes the default agent. Its `command` entries are
+    // deliberately not forwarded to the host any more. Since beta-18387 the
+    // CommandDraft exposes only `add(definition)`, where a definition is
+    // { name, description?, execute() } -- the `update(id, fn)` template
+    // mutation this used to rely on no longer exists, and templates are not part
+    // of the command model at all. Calling it threw a TypeError that killed
+    // plugin setup and left the host's model catalog stuck initialising.
+    // Nothing here executed those commands regardless: `command.execute.before`
+    // is not wired on the V2 server, so registerQuotaDialogCommands() in
+    // tui.tsx owns the quota slash commands end to end via keymap.layer().
     await hooks.config?.(legacyConfig as never);
-    registrations.push(
-      await context.command.transform((draft) => {
-        for (const spec of QUOTA_DIALOG_COMMANDS) {
-          draft.update(spec.id, (command) => {
-            command.template = legacyConfig.command?.[spec.id]?.template ?? `/${spec.slashName}`;
-            command.description = spec.description;
-          });
-        }
-      }),
-    );
 
     if (hooks.tool?.quota_status) {
       const quotaStatus = hooks.tool.quota_status;

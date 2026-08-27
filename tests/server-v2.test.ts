@@ -37,28 +37,24 @@ vi.mock("../src/lib/quota-export-refresh.js", () => ({
 }));
 
 describe("V2 server adapter", () => {
-  it("registers commands, tools, hooks, events, and cleanup", async () => {
-    const disposers = [vi.fn(), vi.fn(), vi.fn()];
-    let commandTransform: ((draft: unknown) => void) | undefined;
+  it("registers tools, hooks, events, and cleanup, and no longer touches commands", async () => {
+    const disposers = [vi.fn(), vi.fn()];
     let toolTransform: ((draft: unknown) => void) | undefined;
     let toolHook: ((input: unknown) => Promise<void>) | undefined;
     let eventYielded = false;
     const context = {
       catalog: { provider: { list: vi.fn(async () => ({ data: [] })) } },
       command: {
-        transform: vi.fn(async (transform) => {
-          commandTransform = transform;
-          return { dispose: disposers[0] };
-        }),
+        transform: vi.fn(async () => ({ dispose: vi.fn() })),
       },
       tool: {
         transform: vi.fn(async (transform) => {
           toolTransform = transform;
-          return { dispose: disposers[1] };
+          return { dispose: disposers[0] };
         }),
         hook: vi.fn(async (_name, hook) => {
           toolHook = hook;
-          return { dispose: disposers[2] };
+          return { dispose: disposers[1] };
         }),
       },
       session: { get: vi.fn(), synthetic: vi.fn() },
@@ -72,14 +68,6 @@ describe("V2 server adapter", () => {
 
     const plugin = (await import("../src/server.js")).default;
     const cleanup = await plugin.setup(context as never);
-    const commands = new Map<string, Record<string, unknown>>();
-    commandTransform?.({
-      update(name: string, update: (command: Record<string, unknown>) => void) {
-        const command = { name };
-        update(command);
-        commands.set(name, command);
-      },
-    });
     let registeredTool: { execute(input: unknown, context: unknown): Promise<unknown> } | undefined;
     toolTransform?.({
       add(tool: typeof registeredTool) {
@@ -87,8 +75,14 @@ describe("V2 server adapter", () => {
       },
     });
 
-    expect(commands.size).toBeGreaterThan(1);
-    expect(commands.get("quota")).toMatchObject({ template: "/quota" });
+    // The legacy `config` hook must still run: it seeds opencodeConfig and
+    // normalizes the default agent.
+    expect(mocks.config).toHaveBeenCalled();
+    // Since beta-18387 the host's CommandDraft only exposes `add({ name,
+    // description, execute })`; the `update(id, fn)` template mutation this
+    // adapter used is gone, and calling it killed plugin setup. The quota slash
+    // commands are owned by registerQuotaDialogCommands() in tui.tsx instead.
+    expect(context.command.transform).not.toHaveBeenCalled();
     await expect(
       registeredTool?.execute({}, { sessionID: "session-1", messageID: "m", agent: "a" }),
     ).resolves.toEqual({ content: "quota output" });
